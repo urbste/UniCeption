@@ -45,13 +45,16 @@ dependencies = [
 
 [project.optional-dependencies]
 xformers = ["xformers"]
+spargeattn = [
+    "spas_sage_attn @ git+https://github.com/thu-ml/SpargeAttn.git",
+]
 dev = [
     "black",
     "isort",
     "pre-commit",
     "pytest",
 ]
-all = ["xformers", "black", "isort", "pre-commit", "pytest"]
+all = ["xformers", "spas_sage_attn @ git+https://github.com/thu-ml/SpargeAttn.git", "black", "isort", "pre-commit", "pytest"]
 
 [project.scripts]
 uniception-download-checkpoints = "scripts.download_checkpoints:main"

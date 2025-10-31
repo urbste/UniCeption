@@ -18,6 +18,9 @@ pip install uniception
 # Optional: Install with XFormers support
 pip install "uniception[xformers]"
 
+# Optional: Install with SpargeAttn support for accelerated sparse attention
+pip install "uniception[spargeattn]"
+
 # Optional: Install with development tools
 pip install "uniception[dev]"
 
@@ -53,6 +56,9 @@ pip install -e .
 # Optional: Install with XFormers support
 pip install -e ".[xformers]"
 
+# Optional: Install with SpargeAttn support for accelerated sparse attention
+pip install -e ".[spargeattn]"
+
 # Optional: Install with development tools
 pip install -e ".[dev]"
 
@@ -78,6 +84,33 @@ INSTALL_CROCO_ROPE=true pip install -e .
 cd uniception/models/libs/croco/curope
 python setup.py build_ext --inplace
 cd ../../../../../
+```
+
+### Optional: SpargeAttn for Sparse Attention Acceleration
+
+To enable accelerated sparse attention using SpargeAttn:
+
+```bash
+# Install with SpargeAttn support
+pip install -e ".[spargeattn]"
+```
+
+SpargeAttn provides a training-free sparse attention mechanism that can accelerate inference for various models. The integration is automatic - when SpargeAttn is installed, transformer blocks will use it automatically.
+
+**Configuration:** You can configure SpargeAttn thresholds via environment variables:
+- `SPAS_SIMTHRESHD1`: Similarity threshold (default: 0.6)
+- `SPAS_CDFTHRESHD`: CDF threshold (default: 0.97)
+- `SPAS_PVTHRESHD`: PV threshold (default: 15)
+
+Or programmatically:
+```python
+from uniception.models.utils.transformer_blocks import set_spas_sage2_thresholds, set_spas_sage2_enabled
+
+# Set thresholds
+set_spas_sage2_thresholds(simthreshd1=0.6, cdfthreshd=0.97, pvthreshd=15)
+
+# Enable/disable SpargeAttn
+set_spas_sage2_enabled(True)
 ```
 
 ### Installation Validation and Dependency Checking
