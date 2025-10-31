@@ -10,38 +10,27 @@ import math
 from itertools import repeat
 from typing import Callable, Optional
 import os
-
+import time
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.jit import Final
 
-from uniception.models.utils.config import use_fused_attn
+from uniception.models.utils.config import (
+    use_fused_attn,
+    spas_sage2_attn_meansim_cuda,
+    SPAS_SIMTHRESHD1,
+    SPAS_CDFTHRESHD,
+    SPAS_PVTHRESHD,
+)
+import uniception.models.utils.config as config
 
 torch.backends.cuda.matmul.allow_tf32 = True
 
-# Optional SPAS-SAGE2 attention kernel support and configuration
-try:
-    from spas_sage_attn import spas_sage2_attn_meansim_cuda  # type: ignore
-    _HAS_SPAS_SAGE2_ATTN = True
-except Exception:
-    spas_sage2_attn_meansim_cuda = None  # type: ignore
-    _HAS_SPAS_SAGE2_ATTN = False
-
-# Thresholds (env-overridable) and runtime setters
-SIMTHRESHD1 = float(os.getenv("SPAS_SIMTHRESHD1", "0.6"))
-CDFTHRESHD = float(os.getenv("SPAS_CDFTHRESHD", "0.97"))
-PVTHRESHD = int(os.getenv("SPAS_PVTHRESHD", "15"))
-
-def set_spas_sage2_thresholds(simthreshd1: float, cdfthreshd: float, pvthreshd: int):
-    global SIMTHRESHD1, CDFTHRESHD, PVTHRESHD
-    SIMTHRESHD1 = float(simthreshd1)
-    CDFTHRESHD = float(cdfthreshd)
-    PVTHRESHD = int(pvthreshd)
-
-def set_spas_sage2_enabled(enabled: bool):
-    global _HAS_SPAS_SAGE2_ATTN
-    _HAS_SPAS_SAGE2_ATTN = bool(enabled) and (spas_sage2_attn_meansim_cuda is not None)
+# Alias for backward compatibility
+SIMTHRESHD1 = SPAS_SIMTHRESHD1
+CDFTHRESHD = SPAS_CDFTHRESHD
+PVTHRESHD = SPAS_PVTHRESHD
 
 
 def _ntuple(n):
@@ -219,7 +208,7 @@ class Attention(nn.Module):
             )
             q = q * scaling_factor
 
-        if _HAS_SPAS_SAGE2_ATTN:
+        if config._HAS_SPAS_SAGE2_ATTN:
             x = spas_sage2_attn_meansim_cuda(
                 q, k, v,
                 simthreshd1=SIMTHRESHD1,
@@ -229,7 +218,7 @@ class Attention(nn.Module):
                 output_dtype=q.dtype,
                 scale=self.scale,
                 dropout_p=(self.attn_drop.p if self.training else 0.0),
-            )
+            ).to(q.dtype)
         else:
             if self.fused_attn:
                 x = F.scaled_dot_product_attention(
@@ -360,7 +349,8 @@ class CrossAttention(nn.Module):
             )
             q = q * scaling_factor
 
-        if _HAS_SPAS_SAGE2_ATTN:
+
+        if config._HAS_SPAS_SAGE2_ATTN:
             x = spas_sage2_attn_meansim_cuda(
                 q, k, v,
                 simthreshd1=SIMTHRESHD1,
@@ -370,8 +360,9 @@ class CrossAttention(nn.Module):
                 output_dtype=q.dtype,
                 scale=self.scale,
                 dropout_p=(self.attn_drop.p if self.training else 0.0),
-            )
+            ).to(q.dtype)
         else:
+            start = time.time()
             if self.fused_attn:
                 x = F.scaled_dot_product_attention(
                     q, k, v, dropout_p=(self.attn_drop.p if self.training else 0.0), scale=self.scale
@@ -382,7 +373,8 @@ class CrossAttention(nn.Module):
                 attn = attn.softmax(dim=-1)
                 attn = self.attn_drop(attn)
                 x = attn @ v
-
+            end = time.time()
+            print("Fused attention time", end - start)
         x = x.transpose(1, 2).reshape(B, Nq, C)
         x = self.proj(x)
         x = self.proj_drop(x)

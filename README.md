@@ -18,9 +18,6 @@ pip install uniception
 # Optional: Install with XFormers support
 pip install "uniception[xformers]"
 
-# Optional: Install with SpargeAttn support for accelerated sparse attention
-pip install "uniception[spargeattn]"
-
 # Optional: Install with development tools
 pip install "uniception[dev]"
 
@@ -104,7 +101,7 @@ SpargeAttn provides a training-free sparse attention mechanism that can accelera
 
 Or programmatically:
 ```python
-from uniception.models.utils.transformer_blocks import set_spas_sage2_thresholds, set_spas_sage2_enabled
+from uniception.models.utils.config import set_spas_sage2_thresholds, set_spas_sage2_enabled
 
 # Set thresholds
 set_spas_sage2_thresholds(simthreshd1=0.6, cdfthreshd=0.97, pvthreshd=15)
